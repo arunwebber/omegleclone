@@ -1,0 +1,24 @@
+doctype html
+html
+  head
+    title Messaging App
+    link(rel='stylesheet', href='/style.css')
+  body
+    h1 Open Omegle
+    h2 <a href="https://www.omegle.com/" target="_blank">Omegle</a> is dead! Now what? 
+    h3 because there was a lot to learn from strangers!.
+
+    p Status: 
+    span#statusMessage Waiting for a stranger to join...
+
+    p#onlineCount Online users: 0
+
+    div#chatArea
+      // Chat messages will be displayed here
+
+    textarea#messageInput(placeholder='Type your message here...', rows='4', cols='50')
+    button#sendButton Send Message
+    button#leaveButton Connect Me to the Next
+
+    script(src='/client.js')
+    
