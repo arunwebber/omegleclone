@@ -18,9 +18,8 @@ app.get('/', (req, res) => {
 
 // Start Express server
 const server = app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running at http://${server.address().address}:${port}`);
+  console.log(`Server running at http://${server.address().address}:${port}`);
 });
-  
 
 // Create WebSocket server
 const wss = new WebSocket.Server({ server });
@@ -60,13 +59,13 @@ wss.on('connection', (ws) => {
       if (waitingUsers.length > 0) {
         const partnerIndex = Math.floor(Math.random() * waitingUsers.length);
         const partner = waitingUsers.splice(partnerIndex, 1)[0];
-        activePairs.push({ user1: currentUser.ws, user2: partner.ws });
+        activePairs.push({ user1: currentUser, user2: partner });
 
-        console.log(`Pairing ${data.name} with ${partner.name}`);
+        console.log(`Pairing ${currentUser.name} with ${partner.name}`);
         currentUser.ws.send(JSON.stringify({ type: 'partner', message: `Partner connected: ${partner.name}` }));
         partner.ws.send(JSON.stringify({ type: 'partner', message: `Partner connected: ${currentUser.name}` }));
 
-        setupMessageRelay(currentUser.ws, partner.ws);
+        setupMessageRelay(currentUser, partner);
 
       } else {
         waitingUsers.push(currentUser);
@@ -79,11 +78,10 @@ wss.on('connection', (ws) => {
     }
 
     if (data.type === 'chat') {
-      const pair = activePairs.find(p => p.user1 === currentUser.ws || p.user2 === currentUser.ws);
+      const pair = activePairs.find(p => p.user1.ws === currentUser.ws || p.user2.ws === currentUser.ws);
       if (pair) {
-        const partner = pair.user1 === currentUser.ws ? pair.user2 : pair.user1;
+        const partner = pair.user1.ws === currentUser.ws ? pair.user2.ws : pair.user1.ws;
         if (partner.readyState === WebSocket.OPEN) {
-          // Send message in format: { type: 'chat', userName: 'name', message: 'content' }
           partner.send(JSON.stringify({ type: 'chat', userName: currentUser.name, message: data.message }));
         }
       }
@@ -100,31 +98,31 @@ wss.on('connection', (ws) => {
 
 // Function to relay messages between two users in a pair
 function setupMessageRelay(user1, user2) {
-  user1.on('message', (message) => {
-    console.log(`Message from user1: ${message}`);
+  user1.ws.on('message', (message) => {
     const data = JSON.parse(message);
-    if (user2.readyState === WebSocket.OPEN && data.type === 'chat') {
-      user2.send(JSON.stringify({ type: 'chat', userName: data.userName, message: data.message }));
-      console.log(`Relayed message to user2: ${data.message}`);
+    if (user2.ws.readyState === WebSocket.OPEN && data.type === 'chat') {
+      // Send the chat message with the sender's name to the partner
+      user2.ws.send(JSON.stringify({ type: 'chat', userName: user1.name, message: data.message }));
+      console.log(`Relayed message from ${user1.name} to ${user2.name}: ${data.message}`);
     }
   });
 
-  user2.on('message', (message) => {
-    console.log(`Message from user2: ${message}`);
+  user2.ws.on('message', (message) => {
     const data = JSON.parse(message);
-    if (user1.readyState === WebSocket.OPEN && data.type === 'chat') {
-      user1.send(JSON.stringify({ type: 'chat', userName: data.userName, message: data.message }));
-      console.log(`Relayed message to user1: ${data.message}`);
+    if (user1.ws.readyState === WebSocket.OPEN && data.type === 'chat') {
+      // Send the chat message with the sender's name to the partner
+      user1.ws.send(JSON.stringify({ type: 'chat', userName: user2.name, message: data.message }));
+      console.log(`Relayed message from ${user2.name} to ${user1.name}: ${data.message}`);
     }
   });
 }
 
 // Handle a user leaving the current chat
 function handleLeaveChat(user) {
-  const pairIndex = activePairs.findIndex(pair => pair.user1 === user || pair.user2 === user);
+  const pairIndex = activePairs.findIndex(pair => pair.user1.ws === user || pair.user2.ws === user);
   if (pairIndex !== -1) {
     const pair = activePairs[pairIndex];
-    const partner = pair.user1 === user ? pair.user2 : pair.user1;
+    const partner = pair.user1.ws === user ? pair.user2.ws : pair.user1.ws;
 
     activePairs.splice(pairIndex, 1);
 
@@ -141,7 +139,7 @@ function handleLeaveChat(user) {
 
 // Handle disconnection and manage the waiting queue
 function handleDisconnection(user) {
-  activePairs = activePairs.filter(pair => pair.user1 !== user && pair.user2 !== user);
+  activePairs = activePairs.filter(pair => pair.user1.ws !== user && pair.user2.ws !== user);
   waitingUsers = waitingUsers.filter(waiting => waiting.ws !== user);
   console.log(`User disconnected. Waiting list updated.`);
 }
