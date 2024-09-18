@@ -21,7 +21,7 @@ if (!userName) {
 // Function to send a message
 function sendMessage(message) {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'chat', message }));
+    ws.send(JSON.stringify({ type: 'chat', message,userName}));
     displayMessage(`You: ${message}`);
     messageInput.value = '';
     console.log(`Sent message: ${message}`);
@@ -42,7 +42,7 @@ ws.onmessage = (event) => {
   } else if (data.type === 'chat') {
     console.log(`Processing chat message: ${data.message}`);
     // console.log('data:',data);
-    displayMessage(data.message);
+    displayMessage(`${data.userName}: ${data.message}`);
   } else if (data.type === 'onlineCount') {
     onlineCount.textContent = `Online users: ${data.count}`;
   }
